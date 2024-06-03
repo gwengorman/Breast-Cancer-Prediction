@@ -1,0 +1,264 @@
+---
+title: "Breast Cancer Analysis and Predictor"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+date: "2024-04-28"
+---
+
+```{r Breast Cancer}
+
+##First we will import the Breast Cancer table from Kaggle to perform testing##
+library(readxl)
+BRCA <- read_excel("/Users/gwengorman/Downloads/BRCA 2.xlsx", 
+    col_types = c("text", "numeric", "text", 
+       "numeric", "numeric", "numeric", 
+       "numeric", "text", "text", "text", 
+      "text", "text", "text", "date", "date", 
+     "text"))
+View(BRCA)
+
+#remove any observations with null data#
+breast_cancer <- na.omit(BRCA) 
+
+summary(breast_cancer)
+
+###We will perform bivariate analysis of the given variables 
+#to test whether the different variables are independent of survival rate 
+#at a .05 significance level.To do this, we will need to perform a 
+#chi-squared test given the response variable is categorical###
+
+#SURGERY vs. SURVIVAL
+cancer_survival = data.frame(breast_cancer$Surgery_type,breast_cancer$Patient_Status)
+ 
+#contingency table          
+cancer_survival = table(breast_cancer$Surgery_type,breast_cancer$Patient_Status) 
+                 
+print(cancer_survival)
+
+#Chi-square test
+print(chisq.test(cancer_survival))
+
+#Bar Plot
+barplot(cancer_survival, beside = TRUE, col = c("lightblue", "lightgreen"),
+        main = "Surgery vs Survival Rate",
+        xlab = "Surgery Type", ylab = "Survival")
+ 
+legend("center", legend = rownames(cancer_survival), fill = c("lightblue", "lightgreen"))
+
+##With a p-value of .36, we conclude that surgery is independent of survival rate 
+#and thus there is weak correlation between the two variables##
+
+#TUMOR STAGE vs. SURVIVAL
+tumour_survival = data.frame(breast_cancer$Tumour_Stage,breast_cancer$Patient_Status)
+ 
+tumour_survival = table(breast_cancer$Tumour_Stage,breast_cancer$Patient_Status) 
+                 
+print(tumour_survival)
+
+print(chisq.test(tumour_survival))
+
+barplot(tumour_survival, beside = TRUE, col = c("blue", "darkgreen"),
+        main = "Tumour Stage vs Survival Rate",
+        xlab = "Tumour Stage", ylab = "Survival")
+ 
+legend("center", legend = rownames(cancer_survival), fill = c("blue", "darkgreen"))
+
+#with a p-value of 0.57 we conclude that tumour stage is independent of survival rate 
+#and thus, there is weak correlation between the two variables.##
+
+#TUMOUR VS SURGERY TYPE#
+
+tumour_surgery = data.frame(breast_cancer$Surgery_type,breast_cancer$Tumour_Stage)
+ 
+tumour_surgery = table(breast_cancer$Surgery_type,breast_cancer$Tumour_Stage) 
+                 
+print(tumour_surgery)
+
+print(chisq.test(tumour_surgery))
+
+barplot(tumour_survival, beside = TRUE, col = c("blue", "darkgreen"),
+        main = "Tumour Stage vs Surgery Type",
+        xlab = "Tumour Stage", ylab = "Surgery Type")
+ 
+legend("center", legend = rownames(cancer_survival), fill = c("blue", "darkgreen"))
+
+#with a p-value of 0.000012 we conclude that there is a strong correlation between the two variables.##
+
+#GENDER vs. SURVIVAL
+gender_survival = data.frame(breast_cancer$Gender,breast_cancer$Patient_Status)
+ 
+gender_survival = table(breast_cancer$Gender,breast_cancer$Patient_Status) 
+                 
+print(gender_survival)
+
+print(chisq.test(gender_survival))
+
+barplot(gender_survival, beside = TRUE, col = c("lightpink", "lightyellow"),
+        main = "Gender vs Survival Rate",
+        xlab = "Gender", ylab = "Survival")
+ 
+legend("center", legend = rownames(gender_survival), fill = c("lightpink", "lightyellow"))
+
+#The results are uninformative considering how small the male sample is. In general, this data set is an       under sampling of male cancer patients and "dead" cancer patients. For the sake of the exercise, we will remove male observations and over-sample the "dead" patients.
+
+#First, male patients and null values have been removed in a SQL query. Also we will remove irrelevant columns including Patient ID, Gender, ER.Status, PR.Status, Date of surgery, and date of last visit#
+
+#Oversample "Dead" Patients
+library(conflicted)
+library(dplyr)
+BRCA_updated <- read.csv("/Users/gwengorman/Downloads/BRCA_updated - BRCA 2.csv (2).csv", header = TRUE)
+View(BRCA_updated)
+ 
+BRCA_updated$Patient_Status<-as.factor(BRCA_updated$Patient_Status)
+prop.table(table(BRCA_updated$Patient_Status))
+
+summary(BRCA_updated)
+
+# To perform machine learning predictions, we will break our sample into a test set and training set.
+library(caret)
+set.seed(317)
+index<-createDataPartition(BRCA_updated$Patient_Status,p=0.8,list=FALSE)
+train<-BRCA_updated[index,]
+test<-BRCA_updated[-index,]
+
+#We will upsample the training set to increase the dead patients
+set.seed(317)
+trainup<-upSample(x=train[,-ncol(train)],
+                  y=train$Patient_Status)
+
+summary(trainup)
+
+#Now our training sample is an equal set of 202 alive patients and 202 dead patients. Let us review the analysis#
+
+#TUMOR STAGE vs. SURVIVAL
+patient_oversample <- na.omit(trainup)
+tumour_survival_oversample = data.frame(patient_oversample$Tumour_Stage,patient_oversample$Class)
+ 
+tumour_survival_oversample = table(patient_oversample$Tumour_Stage,patient_oversample$Class) 
+                 
+print(tumour_survival_oversample)
+
+print(chisq.test(tumour_survival_oversample))
+
+barplot(tumour_survival_oversample, beside = TRUE, col = c("blue", "darkgreen"),
+        main = "Tumour Stage Oversample vs Survival Rate",
+        xlab = "Tumour Stage Oversample", ylab = "Survival")
+ 
+legend("center", legend = rownames(tumour_survival_oversample), fill = c("blue", "darkgreen"))
+
+#with a p-value of p=0.36 we conclude that tumour stage is independent of survival rate and thus, there is      weak correlation between the two variables.##
+
+#SURGERY TYPE vs SURVIVAL (chi square)#
+cancer_survival_oversample = data.frame(patient_oversample$Surgery_type,patient_oversample$Class)
+ 
+cancer_survival_oversample = table(patient_oversample$Surgery_type,patient_oversample$Class) 
+                 
+print(cancer_survival_oversample)
+
+print(chisq.test(cancer_survival_oversample))
+
+barplot(cancer_survival_oversample, beside = TRUE, col = c("lightblue", "lightgreen"),
+        main = "Surgery Type Oversample vs Survival Rate",
+        xlab = "Surgery Type Oversample", ylab = "Survival")
+ 
+legend("center", legend = rownames(cancer_survival_oversample), fill = c("lightblue", "lightgreen"))
+
+    ##With a p-value of .04, we conclude that surgery type has correlation to survival
+
+#HISTOLOGY (chi-square)
+
+histology_survival_oversample = data.frame(patient_oversample$Histology,patient_oversample$Class)
+ 
+histology_survival_oversample = table(patient_oversample$Histology,patient_oversample$Class) 
+                 
+print(histology_survival_oversample)
+
+print(chisq.test(histology_survival_oversample))
+
+barplot(histology_survival_oversample, beside = TRUE, col = c("blue", "darkgreen"),
+        main = "Histology Oversample vs Survival Rate",
+        xlab = "Histology Oversample", ylab = "Survival")
+ 
+legend("center", legend = rownames(histology_survival_oversample), fill = c("blue", "darkgreen"))
+
+#with a p-value of p=0.29 we conclude that tumour stage is independent of survival rate and thus, there is      weak correlation between the two variables.##
+
+
+#HER2 (chi-square)
+Her2_survival_oversample = data.frame(patient_oversample$HER2.status,patient_oversample$Class)
+ 
+Her2_survival_oversample = table(patient_oversample$HER2.status,patient_oversample$Class) 
+                 
+print(Her2_survival_oversample)
+
+print(chisq.test(Her2_survival_oversample))
+
+barplot(Her2_survival_oversample, beside = TRUE, col = c("blue", "darkgreen"),
+        main = "Her2 Oversample vs Survival Rate",
+        xlab = "Her2 Oversample", ylab = "Survival")
+ 
+legend("center", legend = rownames(Her2_survival_oversample), fill = c("blue", "darkgreen"))
+
+#with a p-value of p=0.09 we conclude that Her2 is independent of survival rate and thus, there is weak correlation between the two variables.##
+
+#Logistic regression
+
+summary(trainup)
+library(dplyr)
+trainup$Tumour_Stage <- recode(trainup$Tumour_Stage, "I" = 1, "II" = 2, "III" = 3)
+trainup$Histology <- recode(trainup$Histology, "Infiltrating Ductal Carcinoma" = 1, "Mucinous Carcinoma" = 2, "Infiltrating Lobular Carcinoma" = 3)
+trainup$HER2.status <- recode(trainup$HER2.status, "Positive" = 1, "Negative" = 0)
+trainup$Surgery_type <- recode(trainup$Surgery_type, "Other" = 1, "Lumpectomy" = 2,	"Simple Mastectomy"= 3,"Modified Radical Mastectomy"=4)
+
+library(caret)
+set.seed(10)
+proteinmodelup <- glm(Class~Protein1+Protein2+Protein3+Protein4+Age+Tumour_Stage+Histology+HER2.status,Surgery_type, data=trainup, family = "binomial")
+summary(proteinmodelup)
+
+proteinmodelup2 <- glm(Class~Protein1+Protein2+Protein3+Protein4, data=trainup, family = "binomial")
+summary(proteinmodelup2)
+
+plot(proteinmodelup2)
+
+# Convert response variable in test dataset to factor with same levels as training dataset
+test$Patient_Status <- factor(test$Patient_Status, levels = levels(trainup$Class))
+
+
+# Make predictions on the test dataset
+pred_prob <- predict(proteinmodelup2, newdata = test, type = "response")
+
+# Convert predicted probabilities to class predictions based on a threshold of 0.5
+pred_class <- factor(ifelse(pred_prob > 0.5, "Alive", "Dead"), levels = levels(test$Patient_Status))
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(pred_class, test$Patient_Status)
+conf_matrix
+
+#This accuracy is not acceptable. Let's run other predictive models
+
+#DECISION TREE MODEL
+library(rpart)
+tree_model <- rpart(Class~Protein1+Protein2+Protein3+Protein4, data = trainup)
+pred_probtree <- predict(tree_model, newdata = test, type = "class")
+
+confusionMatrix(pred_probtree, test$Patient_Status)
+
+#Here we see the accuracy increase from 47% to 68% using the significant variables in a decision tree#
+
+library(rpart.plot)
+rpart.plot(tree_model)
+
+library(randomForest)
+
+rf_model <- randomForest(Class~Protein1+Protein2+Protein3+Protein4,data = trainup, ntree = 250, mtry = 2)
+predictions <- predict(rf_model, newdata = test)
+confusionMatrix(predictions, test$Patient_Status)
+
+plot(rf_model)
+
+
+
+#Overall, the Random Forest has an acceptable accuracy of 76%. The model seems to perform moderately well in terms of sensitivity and positive predictive value but less so in terms of specificity and negative predictive value. Overall, we faced some challenges with the original dataset. There were null values, undersampling of dead patients, and undersampling of male patients. The sample size could have also benefited from being larger overall as it only has 317 observations.
+```
