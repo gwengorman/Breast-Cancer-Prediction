@@ -7,7 +7,6 @@ output:
 date: "2024-04-28"
 ---
 
-```{r Breast Cancer}
 
 ##First we will import the Breast Cancer table from Kaggle to perform testing##
 library(readxl)
@@ -261,4 +260,4 @@ plot(rf_model)
 
 
 #Overall, the Random Forest has an acceptable accuracy of 76%. The model seems to perform moderately well in terms of sensitivity and positive predictive value but less so in terms of specificity and negative predictive value. Overall, we faced some challenges with the original dataset. There were null values, undersampling of dead patients, and undersampling of male patients. The sample size could have also benefited from being larger overall as it only has 317 observations.
-```
+
